@@ -47,12 +47,12 @@ const Header: React.FC = () => {
           >
             Inloggen
           </a>
-          <a
-            href="/register"
+          <Link
+            to="/register"
             className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 transform hover:-translate-y-0.5"
           >
             Registreer
-          </a>
+          </Link>
         </nav>
       </div>
     </header>

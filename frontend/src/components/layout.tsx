@@ -1,9 +1,10 @@
 import React from "react";
+import { Outlet } from "react-router-dom";
 import Header from "./header";
 import Footer from "./footer";
 import ThreeScene from "../assets/ThreeScene";
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const Layout: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden text-white">
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -17,9 +18,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </div>
 
       <Header />
-      <main className="relative z-10 flex-1">
-        {children}
+
+      <main className="relative z-10 flex-1 pt-24">
+        <Outlet />
       </main>
+
       <Footer />
     </div>
   );
