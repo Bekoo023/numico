@@ -1,4 +1,56 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+
+interface CountUpProps {
+  end: number;
+  duration?: number;
+  prefix?: string;
+  suffix?: string;
+  decimals?: number;
+}
+
+const CountUp: React.FC<CountUpProps> = ({
+  end,
+  duration = 1000,
+  prefix = "",
+  suffix = "",
+  decimals = 0,
+}) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const increment = end / (duration / 16);
+    let frame: number;
+
+    const animate = () => {
+      start += increment;
+      if (start < end) {
+        setCount(start);
+        frame = requestAnimationFrame(animate);
+      } else {
+        setCount(end);
+        cancelAnimationFrame(frame);
+      }
+    };
+    animate();
+
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line
+  }, [end, duration]);
+
+  return (
+    <span>
+      {prefix}
+      {decimals > 0
+        ? count.toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+          })
+        : Math.floor(count).toLocaleString()}
+      {suffix}
+    </span>
+  );
+};
 
 const Home: React.FC = () => {
   const features = [
@@ -35,10 +87,21 @@ const Home: React.FC = () => {
   ];
 
   const stats = [
-    { number: "2K+", label: "Tevreden gebruikers" },
-    { number: "120K+", label: "Verwerkte bonnetjes" },
-    { number: "98.2%", label: "Nauwkeurigheid van AI" },
-    { number: "5 min", label: "Gemiddelde tijdsbesparing" },
+    { number: 2000, label: "Tevreden gebruikers", suffix: "+", prefix: "" },
+    { number: 120000, label: "Verwerkte bonnetjes", suffix: "+", prefix: "" },
+    {
+      number: 98.2,
+      label: "Nauwkeurigheid van AI",
+      suffix: "%",
+      decimals: 1,
+      prefix: "",
+    },
+    {
+      number: 5,
+      label: "Gemiddelde tijdsbesparing",
+      suffix: " min",
+      prefix: "",
+    },
   ];
 
   return (
@@ -114,7 +177,13 @@ const Home: React.FC = () => {
           {stats.map((stat, index) => (
             <div key={index} className="text-center">
               <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
-                {stat.number}
+                <CountUp
+                  end={stat.number}
+                  duration={1100 + index * 400}
+                  suffix={stat.suffix}
+                  prefix={stat.prefix}
+                  decimals={stat.decimals}
+                />
               </div>
               <div className="text-slate-400 text-sm">{stat.label}</div>
             </div>
@@ -122,7 +191,6 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Feature-sectie */}
       <section
         id="features"
         className="relative z-10 px-6 py-20 bg-gradient-to-b from-transparent to-slate-900/50 w-full"

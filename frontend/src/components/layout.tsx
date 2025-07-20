@@ -19,7 +19,7 @@ const Layout: React.FC = () => {
 
       <Header />
 
-      <main className="relative z-10 flex-1 pt-24">
+      <main className="relative z-10 flex-1">
         <Outlet />
       </main>
 
