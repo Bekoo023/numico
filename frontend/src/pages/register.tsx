@@ -1,11 +1,23 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // ✅ pad naar context
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
+
+// Veilige JSON parser (valt niet om bij HTML/lege body)
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { raw: text }; }
+}
 
 const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<any>({});
+  const [error, setError] = useState<string | null>(null);                 // algemene fout
+  const [errors, setErrors] = useState<Record<string, string[]>>({});      // veldfouten
   const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth(); // ✅ gebruik context i.p.v. localStorage hier
 
   const [form, setForm] = useState({
     voornaam: "",
@@ -13,11 +25,11 @@ const Register = () => {
     email: "",
     password: "",
     password_confirmation: "",
-    leeftijd: "",
-    aanhef: "meneer",
+    leeftijd: "",          // optioneel
+    aanhef: "meneer",      // required door backend
     bedrijfsnaam: "",
-    aantal_werknemers: "",
-    kvk_nummer: "",
+    aantal_werknemers: "", // optioneel
+    kvk_nummer: "",        // optioneel (8 cijfers)
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -25,30 +37,33 @@ const Register = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
 
     if (errors[name]) {
-      setErrors((prev: any) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+      setErrors((prev) => {
+        const n = { ...prev };
+        delete n[name];
+        return n;
       });
     }
   };
 
-  const handleNext = () => {
-    if (step === 1) {
-      if (!form.voornaam || !form.achternaam || !form.email || !form.password || !form.password_confirmation) {
-        setError("Vul alle verplichte velden in");
-        return;
-      }
-      if (form.password !== form.password_confirmation) {
-        setError("Wachtwoorden komen niet overeen");
-        return;
-      }
-      if (form.password.length < 6) {
-        setError("Wachtwoord moet minimaal 6 karakters bevatten");
-        return;
-      }
+  const step1Valid = () => {
+    if (!form.voornaam || !form.achternaam || !form.email || !form.password || !form.password_confirmation) {
+      setError("Vul alle verplichte velden in");
+      return false;
+    }
+    if (form.password !== form.password_confirmation) {
+      setError("Wachtwoorden komen niet overeen");
+      return false;
+    }
+    if (form.password.length < 6) {
+      setError("Wachtwoord moet minimaal 6 karakters bevatten");
+      return false;
     }
     setError(null);
+    return true;
+  };
+
+  const handleNext = () => {
+    if (step === 1 && !step1Valid()) return;
     setStep((prev) => prev + 1);
   };
 
@@ -56,31 +71,67 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setError(null);
     setErrors({});
 
+    // normaliseer email
+    const email = form.email.trim().toLowerCase();
+
+    // client-side extra check
+    if (form.kvk_nummer && !/^\d{8}$/.test(form.kvk_nummer)) {
+      setLoading(false);
+      setErrors({ kvk_nummer: ["KVK-nummer moet uit 8 cijfers bestaan."] });
+      return;
+    }
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const res = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          voornaam: form.voornaam,
+          achternaam: form.achternaam,
+          email,
+          password: form.password, // model cast 'hashed' doet de hashing
+          password_confirmation: form.password_confirmation,
+          leeftijd: form.leeftijd ? Number(form.leeftijd) : null,
+          aanhef: form.aanhef,
+          bedrijfsnaam: form.bedrijfsnaam || null,
+          aantal_werknemers: form.aantal_werknemers ? Number(form.aantal_werknemers) : null,
+          kvk_nummer: form.kvk_nummer || null,
+        }),
+      });
+
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        if (res.status === 422 && (data as any)?.errors) {
+          setErrors((data as any).errors);
+          setError((data as any).message || "Validatie mislukt");
+        } else if (res.status >= 500) {
+          setError("Serverfout. Probeer het later opnieuw.");
+        } else {
+          setError((data as any)?.message || "Kon geen verbinding maken met de server.");
+        }
+        return;
+      }
+
+      // ✅ na registratie direct ingelogd via context
       setSuccess(true);
+      login((data as any).user, (data as any).token);
+
+      // reset form en naar dashboard
       setForm({
-        voornaam: "",
-        achternaam: "",
-        email: "",
-        password: "",
-        password_confirmation: "",
-        leeftijd: "",
-        aanhef: "meneer",
-        bedrijfsnaam: "",
-        aantal_werknemers: "",
-        kvk_nummer: "",
+        voornaam: "", achternaam: "", email: "", password: "", password_confirmation: "",
+        leeftijd: "", aanhef: "meneer", bedrijfsnaam: "", aantal_werknemers: "", kvk_nummer: "",
       });
       setStep(1);
-      setTimeout(() => {
-        console.log('Redirecting to dashboard...');
-      }, 2000);
-    } catch (err) {
-      setError("Kon geen verbinding maken met de server.");
+      navigate("/dashboard");
+    } catch {
+      setError("Er ging iets mis tijdens het registreren. Probeer het later opnieuw.");
     } finally {
       setLoading(false);
     }
@@ -104,6 +155,9 @@ const Register = () => {
     }
   };
 
+  const FieldError = ({ name }: { name: string }) =>
+    errors[name] ? <p className="mt-1 text-[11px] text-red-300">{errors[name][0]}</p> : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-2 py-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -113,29 +167,27 @@ const Register = () => {
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Progress bar */}
+        {/* Progress */}
         <div className="mb-4">
           <div className="flex justify-between mb-2">
             {[1, 2, 3].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 ${
-                  step >= stepNumber 
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow' 
-                    : 'bg-slate-700 text-slate-400'
+                  step >= stepNumber ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow" : "bg-slate-700 text-slate-400"
                 }`}>
-                  {step > stepNumber ? '✓' : stepNumber}
+                  {step > stepNumber ? "✓" : stepNumber}
                 </div>
                 {stepNumber < 3 && (
                   <div className={`w-16 h-1 mx-2 rounded-full transition-all duration-500 ${
-                    step > stepNumber ? 'bg-gradient-to-r from-cyan-500 to-blue-600' : 'bg-slate-700'
-                  }`}></div>
+                    step > stepNumber ? "bg-gradient-to-r from-cyan-500 to-blue-600" : "bg-slate-700"
+                  }`} />
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow p-4 md:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow p-4 md:p-6 space-y-4">
           {/* Header */}
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
@@ -163,7 +215,7 @@ const Register = () => {
                 <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs font-bold">✓</span>
                 </div>
-                <span className="text-green-300 font-medium">Registratie gelukt! Je wordt doorgestuurd...</span>
+                <span className="text-green-300 font-medium">Registratie gelukt!</span>
               </div>
             </div>
           )}
@@ -174,32 +226,34 @@ const Register = () => {
               <div className="space-y-3 animate-in slide-in-from-right duration-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Aanhef</label>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Aanhef *</label>
                     <select
                       name="aanhef"
                       value={form.aanhef}
                       onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                     >
                       <option value="meneer">Meneer</option>
                       <option value="mevrouw">Mevrouw</option>
                     </select>
+                    <FieldError name="aanhef" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Leeftijd</label>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Leeftijd (optioneel)</label>
                     <input
                       name="leeftijd"
                       type="number"
+                      min={16}
+                      max={120}
                       placeholder="Bijv. 25"
                       value={form.leeftijd}
                       onChange={handleChange}
-                      min="16"
-                      max="120"
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                     />
+                    <FieldError name="leeftijd" />
                   </div>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Voornaam *</label>
@@ -210,8 +264,12 @@ const Register = () => {
                       value={form.voornaam}
                       onChange={handleChange}
                       required
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      autoComplete="given-name"
+                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
+                        errors.voornaam ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
+                      }`}
                     />
+                    <FieldError name="voornaam" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Achternaam *</label>
@@ -222,10 +280,15 @@ const Register = () => {
                       value={form.achternaam}
                       onChange={handleChange}
                       required
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      autoComplete="family-name"
+                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
+                        errors.achternaam ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
+                      }`}
                     />
+                    <FieldError name="achternaam" />
                   </div>
                 </div>
+
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">E-mailadres *</label>
                   <input
@@ -235,9 +298,14 @@ const Register = () => {
                     value={form.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                    autoComplete="email"
+                    className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
+                      errors.email ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
+                    }`}
                   />
+                  <FieldError name="email" />
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Wachtwoord *</label>
@@ -249,8 +317,12 @@ const Register = () => {
                       onChange={handleChange}
                       required
                       minLength={6}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      autoComplete="new-password"
+                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
+                        errors.password ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
+                      }`}
                     />
+                    <FieldError name="password" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Bevestig wachtwoord *</label>
@@ -261,7 +333,8 @@ const Register = () => {
                       value={form.password_confirmation}
                       onChange={handleChange}
                       required
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                      autoComplete="new-password"
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                     />
                   </div>
                 </div>
@@ -289,8 +362,9 @@ const Register = () => {
                     placeholder="Naam van je bedrijf"
                     value={form.bedrijfsnaam}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                   />
+                  <FieldError name="bedrijfsnaam" />
                 </div>
 
                 <div>
@@ -301,9 +375,10 @@ const Register = () => {
                     placeholder="Bijv. 10"
                     value={form.aantal_werknemers}
                     onChange={handleChange}
-                    min="1"
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                    min={0}
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                   />
+                  <FieldError name="aantal_werknemers" />
                 </div>
               </div>
             )}
@@ -320,16 +395,22 @@ const Register = () => {
                   <h3 className="text-base font-semibold text-white mb-1">Bijna klaar!</h3>
                   <p className="text-slate-400 text-xs">Voeg eventueel nog je KVK-nummer toe en maak je account aan</p>
                 </div>
+
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">KVK-nummer</label>
                   <input
                     name="kvk_nummer"
                     type="text"
+                    inputMode="numeric"
+                    pattern="\d{8}"
                     placeholder="Bijv. 12345678"
                     value={form.kvk_nummer}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 backdrop-blur-sm"
+                    className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 ${
+                      errors.kvk_nummer ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
+                    }`}
                   />
+                  <FieldError name="kvk_nummer" />
                 </div>
 
                 <div className="bg-slate-700/30 rounded-lg p-3 border border-slate-600/30 text-xs">
@@ -358,7 +439,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="flex items-center px-4 py-2 text-slate-300 hover:text-cyan-400 transition-all duration-200 font-medium group text-xs"
+                  className="flex items-center px-4 py-2 text-slate-300 hover:text-cyan-400 transition-all duration-200 font-medium group text-xs cursor-pointer"
                 >
                   <svg className="w-3 h-3 mr-1 transform group-hover:-translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -374,7 +455,7 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="flex items-center px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-lg shadow transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg group text-xs"
+                    className="flex items-center px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-lg shadow transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg group text-xs cursor-pointer"
                   >
                     Volgende
                     <svg className="w-3 h-3 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,8 +466,7 @@ const Register = () => {
 
                 {step === 3 && (
                   <button
-                    type="button"
-                    onClick={handleSubmit}
+                    type="submit"
                     disabled={loading}
                     className="flex items-center px-6 py-2 bg-gradient-to-r from-green-500 to-cyan-600 hover:from-green-400 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg text-xs"
                   >
@@ -411,7 +491,7 @@ const Register = () => {
               </div>
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

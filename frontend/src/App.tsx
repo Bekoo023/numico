@@ -7,7 +7,7 @@ import Register from "./pages/register";
 import Dashboard from "./pages/dashboard";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import Login from "./pages/login";
-import { AuthProvider } from "./pages/AuthContext"; // Let op: AuthProvider, niet AuthContext
+import { AuthProvider } from "./pages/AuthContext";
 
 const App: React.FC = () => {
   return (

@@ -1,46 +1,47 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "./AuthContext"; // Pas eventueel pad aan naar jouw projectstructuur
+import { useAuth } from "../context/AuthContext";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { setUser } = useAuth(); // Haal setUser uit de context
+  const { login } = useAuth(); // ✅ context
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      await fetch("http://backend.test/sanctum/csrf-cookie", {
-        credentials: "include",
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+        }),
       });
 
-      const res = await fetch("http://backend.test/api/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const data = await res.json();
 
       if (!res.ok) {
-        const errorData = await res.json();
-        setError(errorData.message || "Inloggen mislukt. Controleer je gegevens.");
-      } else {
-        const data = await res.json();
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("token", data.token);
-        setUser(data.user); // <--- Hier zet je de user ook in de context!
-        navigate("/dashboard");
+        setError(data?.message || "Inloggen mislukt. Controleer je gegevens.");
+        return;
       }
-    } catch (err) {
+
+      // ✅ centraal via context
+      login(data.user, data.token);
+      navigate("/dashboard");
+    } catch {
       setError("Kon geen verbinding maken met de server.");
     } finally {
       setLoading(false);
@@ -49,11 +50,11 @@ const Login = () => {
 
   return (
     <section className="flex items-center justify-center min-h-screen px-2 py-4 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Achtergrond-decoratie */}
+      {/* decor */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-28 -right-28 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl"></div>
-        <div className="absolute -bottom-28 -left-28 w-48 h-48 bg-cyan-500/10 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/5 rounded-full blur-2xl"></div>
+        <div className="absolute -top-28 -right-28 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl" />
+        <div className="absolute -bottom-28 -left-28 w-48 h-48 bg-cyan-500/10 rounded-full blur-2xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/5 rounded-full blur-2xl" />
       </div>
 
       <div className="relative w-full max-w-md">
@@ -62,7 +63,7 @@ const Login = () => {
             <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               Inloggen
             </h2>
-            <p className="text-slate-400 text-xs md:text-sm">Welkom terug! Vul je gegevens in om verder te gaan.</p>
+            <p className="text-slate-400 text-xs md:text-sm">Welkom! Vul je gegevens in om verder te gaan.</p>
           </div>
 
           {error && (
@@ -81,6 +82,7 @@ const Login = () => {
                 value={form.email}
                 onChange={handleChange}
                 required
+                autoComplete="email"
                 className="w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition"
               />
             </div>
@@ -92,6 +94,7 @@ const Login = () => {
                 value={form.password}
                 onChange={handleChange}
                 required
+                autoComplete="current-password"
                 className="w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition"
               />
             </div>
@@ -103,8 +106,8 @@ const Login = () => {
               {loading ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Bezig met inloggen...
                 </>
@@ -119,7 +122,7 @@ const Login = () => {
               Nog geen account?{" "}
               <button
                 onClick={() => navigate("/register")}
-                className="text-cyan-400 hover:text-cyan-300 transition font-semibold"
+                className="text-cyan-400 hover:text-cyan-300 transition font-semibold cursor-pointer"
               >
                 Registreer hier
               </button>

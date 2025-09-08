@@ -35,7 +35,6 @@ const CountUp: React.FC<CountUpProps> = ({
     animate();
 
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line
   }, [end, duration]);
 
   return (

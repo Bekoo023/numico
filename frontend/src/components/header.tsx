@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../pages/AuthContext";
+import { useAuth } from "../context/AuthContext"; // ⬅️ fix importpad
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
 
 const Header: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, apiFetch } = useAuth();       // ⬅️ apiFetch gebruiken
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,20 +17,10 @@ const Header: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token");
-      await fetch("http://backend.test/api/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-    } catch (err) {
-    } finally {
-      logout();
-      navigate("/login");
-    }
+      await apiFetch(`${API_BASE}/api/logout`, { method: "POST" });
+    } catch {}
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -42,11 +34,7 @@ const Header: React.FC = () => {
       <div className="h-full max-w-7xl mx-auto px-6 flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-            <img
-              src="logo.png"
-              alt="logo"
-              className="rounded-xl w-full h-full object-cover"
-            />
+            <img src="logo.png" alt="logo" className="rounded-xl w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
             Numico
@@ -54,10 +42,7 @@ const Header: React.FC = () => {
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6">
-          <Link
-            to="/pricing"
-            className="text-slate-300 hover:text-cyan-400 transition-colors duration-200"
-          >
+          <Link to="/pricing" className="text-slate-300 hover:text-cyan-400 transition-colors duration-200">
             Prijzen
           </Link>
 
@@ -78,9 +63,6 @@ const Header: React.FC = () => {
             </>
           ) : (
             <>
-              <span className="text-slate-400 font-medium">
-                Welkom, {user.name}
-              </span>
               <Link
                 to="/dashboard"
                 className="text-cyan-400 hover:text-blue-400 font-medium transition-all duration-200 px-4 py-2 rounded-lg hover:bg-white/10"
