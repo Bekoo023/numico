@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // ✅ pad naar context
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
 
-// Veilige JSON parser (valt niet om bij HTML/lege body)
 async function safeJson(res: Response) {
   const text = await res.text();
   try { return JSON.parse(text); } catch { return { raw: text }; }
@@ -13,11 +12,11 @@ async function safeJson(res: Response) {
 const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);                 // algemene fout
-  const [errors, setErrors] = useState<Record<string, string[]>>({});      // veldfouten
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth(); // ✅ gebruik context i.p.v. localStorage hier
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     voornaam: "",
@@ -25,11 +24,11 @@ const Register = () => {
     email: "",
     password: "",
     password_confirmation: "",
-    leeftijd: "",          // optioneel
-    aanhef: "meneer",      // required door backend
+    leeftijd: "",
+    aanhef: "meneer", 
     bedrijfsnaam: "",
-    aantal_werknemers: "", // optioneel
-    kvk_nummer: "",        // optioneel (8 cijfers)
+    aantal_werknemers: "",
+    kvk_nummer: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -77,10 +76,8 @@ const Register = () => {
     setError(null);
     setErrors({});
 
-    // normaliseer email
     const email = form.email.trim().toLowerCase();
 
-    // client-side extra check
     if (form.kvk_nummer && !/^\d{8}$/.test(form.kvk_nummer)) {
       setLoading(false);
       setErrors({ kvk_nummer: ["KVK-nummer moet uit 8 cijfers bestaan."] });
@@ -95,7 +92,7 @@ const Register = () => {
           voornaam: form.voornaam,
           achternaam: form.achternaam,
           email,
-          password: form.password, // model cast 'hashed' doet de hashing
+          password: form.password,
           password_confirmation: form.password_confirmation,
           leeftijd: form.leeftijd ? Number(form.leeftijd) : null,
           aanhef: form.aanhef,
@@ -119,11 +116,9 @@ const Register = () => {
         return;
       }
 
-      // ✅ na registratie direct ingelogd via context
       setSuccess(true);
       login((data as any).user, (data as any).token);
 
-      // reset form en naar dashboard
       setForm({
         voornaam: "", achternaam: "", email: "", password: "", password_confirmation: "",
         leeftijd: "", aanhef: "meneer", bedrijfsnaam: "", aantal_werknemers: "", kvk_nummer: "",
@@ -167,7 +162,6 @@ const Register = () => {
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Progress */}
         <div className="mb-4">
           <div className="flex justify-between mb-2">
             {[1, 2, 3].map((stepNumber) => (
@@ -188,7 +182,6 @@ const Register = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow p-4 md:p-6 space-y-4">
-          {/* Header */}
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               Account aanmaken
@@ -197,7 +190,6 @@ const Register = () => {
             <p className="text-slate-400 text-xs">{getStepDescription(step)}</p>
           </div>
 
-          {/* Alerts */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 backdrop-blur-sm text-xs">
               <div className="flex items-center space-x-2">
@@ -221,7 +213,6 @@ const Register = () => {
           )}
 
           <div className="space-y-3">
-            {/* Step 1 */}
             {step === 1 && (
               <div className="space-y-3 animate-in slide-in-from-right duration-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -341,7 +332,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Step 2 */}
             {step === 2 && (
               <div className="space-y-3 animate-in slide-in-from-right duration-200">
                 <div className="text-center p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
@@ -383,7 +373,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Step 3 */}
             {step === 3 && (
               <div className="space-y-3 animate-in slide-in-from-right duration-200">
                 <div className="text-center p-3 bg-gradient-to-r from-green-500/10 to-cyan-500/10 rounded-lg border border-green-500/20">
@@ -433,7 +422,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Navigation buttons */}
             <div className="flex justify-between items-center pt-4 border-t border-slate-700/50 mt-2">
               {step > 1 ? (
                 <button

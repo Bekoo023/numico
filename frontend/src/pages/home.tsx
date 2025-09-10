@@ -106,23 +106,16 @@ const Home: React.FC = () => {
   return (
     <main className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-6 py-32">
       <div className="max-w-4xl mx-auto">
-        <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-400/30 mb-8 backdrop-blur-sm">
-          <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
-          <span className="text-sm font-medium text-cyan-300">
-            Nieuwe AI-technologie beschikbaar
-          </span>
-        </div>
-
-        <h2 className="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight">
+        <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
           Automatiseer je{" "}
           <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
             boekhouding
           </span>
           <br />
-          <span className="text-4xl md:text-6xl">met AI</span>
+          <span className="text-3xl md:text-5xl">met AI</span>
         </h2>
 
-        <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed">
+        <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed">
           Upload bonnetjes, categoriseer automatisch en houd grip op je
           uitgaven.
           <br className="hidden md:block" />
