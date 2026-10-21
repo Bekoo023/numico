@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://backend.test";
 
 async function safeJson(res: Response) {
   const text = await res.text();

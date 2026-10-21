@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 
 type User = {
   id: number;
@@ -19,16 +19,25 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+  const [session] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
+      const parsed = storedUser ? JSON.parse(storedUser) as User : null;
+      return parsed && typeof parsed.id === "number" && storedToken
+        ? { user: parsed, token: storedToken }
+        : { user: null, token: null };
+    } catch {
+      return { user: null, token: null };
     }
+  });
+  const [user, updateUser] = useState<User | null>(session.user);
+  const [token, setToken] = useState<string | null>(session.token);
+
+  const setUser = useCallback((value: User | null) => {
+    updateUser(value);
+    if (value) localStorage.setItem("user", JSON.stringify(value));
+    else localStorage.removeItem("user");
   }, []);
 
   const login = (userData: User, tokenValue: string) => {
@@ -38,14 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("token", tokenValue);
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-  };
+  }, [setUser]);
 
-  const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const apiFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const headers: Record<string, string> = {
       Accept: "application/json",
       ...(options.headers as Record<string, string>),
@@ -56,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return fetch(url, { ...options, headers });
-  };
+  }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, setUser, apiFetch }}>

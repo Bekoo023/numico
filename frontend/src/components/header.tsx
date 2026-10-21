@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // ⬅️ fix importpad
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://backend.test";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://backend.test";
 
 const Header: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);

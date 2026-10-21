@@ -1,10 +1,13 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "./header";
 import Footer from "./footer";
 import ThreeScene from "../assets/ThreeScene";
 
 const Layout: React.FC = () => {
+  const { pathname } = useLocation();
+  if (pathname.replace(/\/$/, "") === "/dashboard") return <Outlet />;
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden text-white">
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
