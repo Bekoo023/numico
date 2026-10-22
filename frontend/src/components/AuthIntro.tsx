@@ -1,0 +1,4 @@
+﻿import { Check, ScanLine, Sparkles } from "lucide-react";
+export default function AuthIntro({ register = false }: { register?: boolean }) {
+  return <div className="auth-intro"><span className="eyebrow">JOUW ADMINISTRATIE, MAAR DAN OVERZICHTELIJK</span><h1>{register ? "Een frisse start." : "Fijn dat je er bent."}<br /><em>{register ? "Een helder overzicht." : "Alles op één plek."}</em></h1><p>{register ? "Maak je werkruimte aan en geef je administratie een fijne plek. Zo houd jij ruimte voor ondernemen." : "Je bonnetjes, je cijfers en je volgende inzicht staan voor je klaar. Log in en pak de draad weer op."}</p><div className="auth-benefits"><span><ScanLine size={19} /> Van losse bonnetjes naar overzicht</span><span><Check size={19} /> Controle over je eigen gegevens</span><span><Sparkles size={19} /> Een assistent die met je meedenkt</span></div></div>;
+}

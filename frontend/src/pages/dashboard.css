@@ -129,3 +129,30 @@
 @media (max-width: 900px) { .dash-sidebar { width: 184px; padding: 24px 12px 16px; } .dash-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-stat-unit { display: inline; } .dash-primary-grid { grid-template-columns: 1fr; } .dash-profile-progress { display: grid; grid-template-columns: 160px 1fr; align-items: center; column-gap: 20px; } .dash-profile-progress .dash-section-heading { grid-column: 1 / -1; } .dash-ring { grid-row: 2 / 5; margin: 20px 0 0; } .dash-profile-progress h3 { align-self: end; margin-top: 20px; } .dash-profile-progress .dash-text-link { justify-content: center; margin: 0; } .dash-account-grid { grid-template-columns: 1fr; gap: 20px; } .dash-identity { border-right: 0; border-bottom: 1px solid #284d3010; padding: 0 0 20px; } .dash-unavailable-grid { grid-template-columns: 1fr; gap: 10px; } .dash-heading { align-items: flex-start; } .dash-heading h1 { font-size: 28px; } .dash-button { padding: 10px; } }
 @media (max-width: 640px) { .dashboard-shell { flex-direction: column; } .dash-sidebar { position: relative; width: 100%; height: auto; padding: 15px 20px; gap: 17px; } .dash-brand { font-size: 24px; padding: 0; } .dash-brand-symbol { font-size: 29px; height: 28px; width: 27px; } .dash-workspace, .dash-nav-label, .dash-note, .dash-sidebar-user div, .dash-sidebar-user .dash-avatar { display: none; } .dash-nav { display: flex; gap: 7px; } .dash-nav a { flex: 1; justify-content: center; gap: 7px; font-size: 10px; padding: 10px 6px; } .dash-nav a svg { width: 15px; } .dash-nav-indicator { display: none; } .dash-sidebar-bottom { position: absolute; right: 20px; top: 15px; padding: 0; margin: 0; } .dash-sidebar-user { margin: 0; padding: 0; border: 0; } .dash-topbar { height: 60px; padding: 0 20px; } .dash-topbar-right { gap: 12px; } .dash-date { font-size: 9px; } .dash-topbar .dash-avatar { display: none; } .dash-content { padding: 25px 18px 15px; } .dash-heading { flex-wrap: wrap; gap: 16px; } .dash-heading h1 { font-size: 28px; } .dash-heading .dash-eyebrow { font-size: 8px; } .dash-sync { font-size: 9px; flex-wrap: wrap; } .dash-stat { padding: 15px; min-height: 160px; } .dash-stat-top { font-size: 10px; } .dash-stat-top .dash-icon { width: 28px; height: 28px; border-radius: 8px; } .dash-stat-top .dash-icon svg { width: 16px; } .dash-stat-value { font-size: 31px; } .dash-stat-unit { display: block; } .dash-stat-foot { font-size: 9px; } .dash-card { padding: 20px; } .dash-profile-progress { display: block; } .dash-ring { margin: 22px auto; } .dash-profile-progress .dash-text-link { margin-top: 18px; } .dash-section-heading h2 { font-size: 15px; } .dash-field-list > div { grid-template-columns: .85fr 1.15fr; font-size: 10px; } .dash-footer { align-items: flex-start; font-size: 8px; } .dash-error { flex-wrap: wrap; } .dash-error span { flex: 1; } }
 @media (prefers-reduced-motion: reduce) { .dashboard-shell *, .dashboard-shell *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Comfortable reading and consistent surfaces throughout the workspace. */
+.dashboard-shell { --dash-muted: #64765f; background: #f5f7f0; font-family: "Segoe UI", Arial, sans-serif; }
+.dash-sidebar { background: #244332; }
+.dash-topbar { background: #fafbf7; }
+.dash-card, .dash-stat { background: #ffffff; border-color: #e0e7d8; box-shadow: 0 4px 20px #29412004; }
+.dash-stat-featured { background: #2d5640; border-color: #2d5640; }
+.dash-nav a { font-size: 13px; min-height: 45px; }
+.dash-workspace strong, .dash-sidebar-user strong { font-size: 13px; }
+.dash-workspace div > span, .dash-sidebar-user div > span { font-size: 11px; }
+.dash-topbar, .dash-heading > div > p:last-child, .dash-button, .dash-company-details dt, .dash-company-details dd { font-size: 13px; }
+.dash-button { min-height: 42px; }
+.dash-stat-top { font-size: 12px; }
+.dash-stat-foot, .dash-tag, .dash-footer { font-size: 11px; }
+.dash-section-heading h2 { font-size: 18px; }
+.dash-company-details > div { padding-block: 15px; }
+.dash-heading h1 { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .dash-nav a { font-size: 12px; padding: 11px; }
+  .dash-sidebar { padding-inline: 18px; }
+  .dash-content { padding-inline: 16px; }
+  .dash-stat-top { font-size: 11px; }
+  .dash-stat-foot { font-size: 10px; flex-wrap: wrap; }
+  .dash-topbar { font-size: 11px; }
+  .dash-date { font-size: 10px; }
+  .dash-footer { font-size: 10px; flex-wrap: wrap; }
+}

@@ -1,488 +1,65 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-
+import AuthIntro from "../components/AuthIntro";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://backend.test";
-
-async function safeJson(res: Response) {
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { return { raw: text }; }
-}
-
-const Register = () => {
+const initialForm = { voornaam: "", achternaam: "", email: "", password: "", password_confirmation: "", leeftijd: "", aanhef: "meneer", bedrijfsnaam: "", aantal_werknemers: "", kvk_nummer: "" };
+type FieldName = keyof typeof initialForm;
+export default function Register() {
+  const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [success, setSuccess] = useState(false);
+  const [params] = useSearchParams();
+  const selectedPlan = { starter: "Starter", professional: "Professional", enterprise: "Enterprise" }[params.get("plan") || ""];
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  const [form, setForm] = useState({
-    voornaam: "",
-    achternaam: "",
-    email: "",
-    password: "",
-    password_confirmation: "",
-    leeftijd: "",
-    aanhef: "meneer", 
-    bedrijfsnaam: "",
-    aantal_werknemers: "",
-    kvk_nummer: "",
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-
-    if (errors[name]) {
-      setErrors((prev) => {
-        const n = { ...prev };
-        delete n[name];
-        return n;
-      });
-    }
-  };
-
-  const step1Valid = () => {
-    if (!form.voornaam || !form.achternaam || !form.email || !form.password || !form.password_confirmation) {
-      setError("Vul alle verplichte velden in");
-      return false;
-    }
-    if (form.password !== form.password_confirmation) {
-      setError("Wachtwoorden komen niet overeen");
-      return false;
-    }
-    if (form.password.length < 6) {
-      setError("Wachtwoord moet minimaal 6 karakters bevatten");
-      return false;
-    }
+  const update = (name: FieldName, value: string) => {
+    setForm(previous => ({ ...previous, [name]: value }));
+    setErrors(previous => { const next = { ...previous }; delete next[name]; return next; });
     setError(null);
+  };
+  function validatePersonal() {
+    if (!form.voornaam.trim() || !form.achternaam.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) || form.password.length < 6) {
+      setError("Vul je naam, een geldig e-mailadres en een wachtwoord van minimaal 6 tekens in."); setStep(1); return false;
+    }
+    if (form.password !== form.password_confirmation) { setErrors({ password_confirmation: ["De wachtwoorden komen niet overeen."] }); setStep(1); return false; }
     return true;
-  };
-
-  const handleNext = () => {
-    if (step === 1 && !step1Valid()) return;
-    setStep((prev) => prev + 1);
-  };
-
-  const handleBack = () => setStep((prev) => prev - 1);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  }
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (loading) return;
-
-    setLoading(true);
     setError(null);
-    setErrors({});
-
-    const email = form.email.trim().toLowerCase();
-
-    if (form.kvk_nummer && !/^\d{8}$/.test(form.kvk_nummer)) {
-      setLoading(false);
-      setErrors({ kvk_nummer: ["KVK-nummer moet uit 8 cijfers bestaan."] });
-      return;
-    }
-
+    if (!validatePersonal()) return;
+    if (step === 1) { setStep(2); return; }
+    if (form.kvk_nummer && !/^\d{8}$/.test(form.kvk_nummer)) { setErrors({ kvk_nummer: ["Vul een KVK-nummer van 8 cijfers in."] }); setStep(2); return; }
+    if (step === 2) { setStep(3); return; }
+    setLoading(true); setErrors({});
     try {
-      const res = await fetch(`${API_BASE}/api/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({
-          voornaam: form.voornaam,
-          achternaam: form.achternaam,
-          email,
-          password: form.password,
-          password_confirmation: form.password_confirmation,
-          leeftijd: form.leeftijd ? Number(form.leeftijd) : null,
-          aanhef: form.aanhef,
-          bedrijfsnaam: form.bedrijfsnaam || null,
-          aantal_werknemers: form.aantal_werknemers ? Number(form.aantal_werknemers) : null,
-          kvk_nummer: form.kvk_nummer || null,
-        }),
-      });
-
-      const data = await safeJson(res);
-
+      const res = await fetch(`${API_BASE}/api/register`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase(), leeftijd: form.leeftijd ? Number(form.leeftijd) : null, bedrijfsnaam: form.bedrijfsnaam || null, aantal_werknemers: form.aantal_werknemers ? Number(form.aantal_werknemers) : null, kvk_nummer: form.kvk_nummer || null }) });
+      const data = await res.json();
       if (!res.ok) {
-        if (res.status === 422 && (data as any)?.errors) {
-          setErrors((data as any).errors);
-          setError((data as any).message || "Validatie mislukt");
-        } else if (res.status >= 500) {
-          setError("Serverfout. Probeer het later opnieuw.");
-        } else {
-          setError((data as any)?.message || "Kon geen verbinding maken met de server.");
+        if (data.errors) {
+          setErrors(data.errors);
+          const personal = ["voornaam", "achternaam", "email", "password", "password_confirmation", "leeftijd", "aanhef"];
+          setStep(Object.keys(data.errors).some(key => personal.includes(key)) ? 1 : 2);
         }
-        return;
+        setError(data.message || "Registreren is niet gelukt. Probeer het opnieuw."); return;
       }
-
-      setSuccess(true);
-      login((data as any).user, (data as any).token);
-
-      setForm({
-        voornaam: "", achternaam: "", email: "", password: "", password_confirmation: "",
-        leeftijd: "", aanhef: "meneer", bedrijfsnaam: "", aantal_werknemers: "", kvk_nummer: "",
-      });
-      setStep(1);
-      navigate("/dashboard");
-    } catch {
-      setError("Er ging iets mis tijdens het registreren. Probeer het later opnieuw.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStepTitle = (stepNumber: number) => {
-    switch (stepNumber) {
-      case 1: return "Persoonlijke gegevens";
-      case 2: return "Bedrijfsinformatie";
-      case 3: return "Bevestiging";
-      default: return "Account aanmaken";
-    }
-  };
-
-  const getStepDescription = (stepNumber: number) => {
-    switch (stepNumber) {
-      case 1: return "Vul je basisgegevens in";
-      case 2: return "Voeg bedrijfsdetails toe (optioneel)";
-      case 3: return "Controleer en voltooi je registratie";
-      default: return "";
-    }
-  };
-
-  const FieldError = ({ name }: { name: string }) =>
-    errors[name] ? <p className="mt-1 text-[11px] text-red-300">{errors[name][0]}</p> : null;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-2 py-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-28 -right-28 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl"></div>
-        <div className="absolute -bottom-28 -left-28 w-48 h-48 bg-cyan-500/10 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/5 rounded-full blur-2xl"></div>
-      </div>
-
-      <div className="relative w-full max-w-md">
-        <div className="mb-4">
-          <div className="flex justify-between mb-2">
-            {[1, 2, 3].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 ${
-                  step >= stepNumber ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow" : "bg-slate-700 text-slate-400"
-                }`}>
-                  {step > stepNumber ? "✓" : stepNumber}
-                </div>
-                {stepNumber < 3 && (
-                  <div className={`w-16 h-1 mx-2 rounded-full transition-all duration-500 ${
-                    step > stepNumber ? "bg-gradient-to-r from-cyan-500 to-blue-600" : "bg-slate-700"
-                  }`} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow p-4 md:p-6 space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              Account aanmaken
-            </h1>
-            <h2 className="text-base text-white font-medium">{getStepTitle(step)}</h2>
-            <p className="text-slate-400 text-xs">{getStepDescription(step)}</p>
-          </div>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 backdrop-blur-sm text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">!</span>
-                </div>
-                <span className="text-red-300 font-medium">{error}</span>
-              </div>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2 backdrop-blur-sm text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-                <span className="text-green-300 font-medium">Registratie gelukt!</span>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {step === 1 && (
-              <div className="space-y-3 animate-in slide-in-from-right duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Aanhef *</label>
-                    <select
-                      name="aanhef"
-                      value={form.aanhef}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                    >
-                      <option value="meneer">Meneer</option>
-                      <option value="mevrouw">Mevrouw</option>
-                    </select>
-                    <FieldError name="aanhef" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Leeftijd (optioneel)</label>
-                    <input
-                      name="leeftijd"
-                      type="number"
-                      min={16}
-                      max={120}
-                      placeholder="Bijv. 25"
-                      value={form.leeftijd}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                    />
-                    <FieldError name="leeftijd" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Voornaam *</label>
-                    <input
-                      name="voornaam"
-                      type="text"
-                      placeholder="Je voornaam"
-                      value={form.voornaam}
-                      onChange={handleChange}
-                      required
-                      autoComplete="given-name"
-                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
-                        errors.voornaam ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
-                      }`}
-                    />
-                    <FieldError name="voornaam" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Achternaam *</label>
-                    <input
-                      name="achternaam"
-                      type="text"
-                      placeholder="Je achternaam"
-                      value={form.achternaam}
-                      onChange={handleChange}
-                      required
-                      autoComplete="family-name"
-                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
-                        errors.achternaam ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
-                      }`}
-                    />
-                    <FieldError name="achternaam" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">E-mailadres *</label>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="naam@voorbeeld.nl"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                    autoComplete="email"
-                    className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
-                      errors.email ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
-                    }`}
-                  />
-                  <FieldError name="email" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Wachtwoord *</label>
-                    <input
-                      name="password"
-                      type="password"
-                      placeholder="Minimaal 6 karakters"
-                      value={form.password}
-                      onChange={handleChange}
-                      required
-                      minLength={6}
-                      autoComplete="new-password"
-                      className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 ${
-                        errors.password ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
-                      }`}
-                    />
-                    <FieldError name="password" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Bevestig wachtwoord *</label>
-                    <input
-                      name="password_confirmation"
-                      type="password"
-                      placeholder="Herhaal je wachtwoord"
-                      value={form.password_confirmation}
-                      onChange={handleChange}
-                      required
-                      autoComplete="new-password"
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-3 animate-in slide-in-from-right duration-200">
-                <div className="text-center p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                  <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center mx-auto mb-2">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-base font-semibold text-white mb-1">Bedrijfsinformatie</h3>
-                  <p className="text-slate-400 text-xs">Deze velden zijn optioneel maar helpen ons je beter te begrijpen</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Bedrijfsnaam</label>
-                  <input
-                    name="bedrijfsnaam"
-                    type="text"
-                    placeholder="Naam van je bedrijf"
-                    value={form.bedrijfsnaam}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                  />
-                  <FieldError name="bedrijfsnaam" />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Aantal werknemers</label>
-                  <input
-                    name="aantal_werknemers"
-                    type="number"
-                    placeholder="Bijv. 10"
-                    value={form.aantal_werknemers}
-                    onChange={handleChange}
-                    min={0}
-                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                  />
-                  <FieldError name="aantal_werknemers" />
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-3 animate-in slide-in-from-right duration-200">
-                <div className="text-center p-3 bg-gradient-to-r from-green-500/10 to-cyan-500/10 rounded-lg border border-green-500/20">
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-base font-semibold text-white mb-1">Bijna klaar!</h3>
-                  <p className="text-slate-400 text-xs">Voeg eventueel nog je KVK-nummer toe en maak je account aan</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">KVK-nummer</label>
-                  <input
-                    name="kvk_nummer"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{8}"
-                    placeholder="Bijv. 12345678"
-                    value={form.kvk_nummer}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 bg-slate-700/50 border rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/20 ${
-                      errors.kvk_nummer ? "border-red-500/50" : "border-slate-600/50 focus:border-cyan-500"
-                    }`}
-                  />
-                  <FieldError name="kvk_nummer" />
-                </div>
-
-                <div className="bg-slate-700/30 rounded-lg p-3 border border-slate-600/30 text-xs">
-                  <h4 className="text-white font-medium mb-1">Overzicht van je gegevens</h4>
-                  <div className="space-y-1 text-xs text-slate-400">
-                    <p><span className="font-medium">Naam:</span> {form.aanhef} {form.voornaam} {form.achternaam}</p>
-                    <p><span className="font-medium">Email:</span> {form.email}</p>
-                    {form.leeftijd && <p><span className="font-medium">Leeftijd:</span> {form.leeftijd}</p>}
-                    {form.bedrijfsnaam && <p><span className="font-medium">Bedrijf:</span> {form.bedrijfsnaam}</p>}
-                    {form.aantal_werknemers && <p><span className="font-medium">Werknemers:</span> {form.aantal_werknemers}</p>}
-                  </div>
-                </div>
-
-                <div className="text-xs text-slate-400 bg-slate-700/20 rounded-lg p-2 border border-slate-600/20">
-                  <p className="flex items-start">
-                    <span className="text-cyan-400 mr-1">ℹ</span>
-                    Door je account aan te maken ga je akkoord met onze voorwaarden en privacybeleid. Velden gemarkeerd met * zijn verplicht.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center pt-4 border-t border-slate-700/50 mt-2">
-              {step > 1 ? (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="flex items-center px-4 py-2 text-slate-300 hover:text-cyan-400 transition-all duration-200 font-medium group text-xs cursor-pointer"
-                >
-                  <svg className="w-3 h-3 mr-1 transform group-hover:-translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Terug
-                </button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex space-x-2">
-                {step < 3 && (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="flex items-center px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-lg shadow transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg group text-xs cursor-pointer"
-                  >
-                    Volgende
-                    <svg className="w-3 h-3 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                )}
-
-                {step === 3 && (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex items-center px-6 py-2 bg-gradient-to-r from-green-500 to-cyan-600 hover:from-green-400 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg text-xs"
-                  >
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Registreren...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Account aanmaken
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default Register;
+      if (!data.user || !data.token) { setError("Registreren kon niet worden bevestigd. Probeer in te loggen."); return; }
+      login(data.user, data.token); navigate("/dashboard");
+    } catch { setError("Kon geen verbinding maken met de server. Probeer het opnieuw."); }
+    finally { setLoading(false); }
+  }
+  const field = (name: FieldName, label: string, type = "text", required = false, autoComplete?: string) => <div><label htmlFor={name}>{label}</label><input id={name} name={name} type={type} value={form[name]} onChange={e => update(name, e.target.value)} required={required} autoComplete={autoComplete} min={name === "leeftijd" ? 16 : name === "aantal_werknemers" ? 0 : undefined} max={name === "leeftijd" ? 120 : undefined} minLength={name.startsWith("password") ? 6 : undefined} inputMode={name === "kvk_nummer" ? "numeric" : undefined} maxLength={name === "kvk_nummer" ? 8 : undefined} aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `${name}-error` : undefined} />{errors[name] && <span id={`${name}-error`} className="field-error">{errors[name][0]}</span>}</div>;
+  return <section className="auth-page container"><AuthIntro register /><div className="auth-card"><div className="auth-steps" aria-label={`Stap ${step} van 3`}>{["Jouw account", "Je bedrijf", "Controle"].map((label, i) => <span className={step >= i + 1 ? "active" : ""} aria-current={step === i + 1 ? "step" : undefined} key={label}>{i + 1}. {label}</span>)}</div><h2>{step === 1 ? "Maak ruimte voor overzicht" : step === 2 ? "Vertel over je bedrijf" : "Klaar voor de start?"}</h2><p>{step === 1 ? "Maak je persoonlijke account aan." : step === 2 ? "Deze gegevens zijn optioneel. Je kunt ook direct verder." : "Controleer je gegevens en maak je account aan."}{selectedPlan && <> Je bekijkt het {selectedPlan}-plan.</>}</p>
+    <form className="auth-form" onSubmit={handleSubmit} aria-busy={loading}>{error && <div className="auth-error" role="alert">{error}</div>}
+    {step === 1 && <><div className="form-row">{field("voornaam", "Voornaam *", "text", true, "given-name")}{field("achternaam", "Achternaam *", "text", true, "family-name")}</div>{field("email", "E-mailadres *", "email", true, "email")}{field("password", "Wachtwoord * · minimaal 6 tekens", "password", true, "new-password")}{field("password_confirmation", "Herhaal wachtwoord *", "password", true, "new-password")}<div className="form-row"><label htmlFor="aanhef">Aanhef<select id="aanhef" value={form.aanhef} onChange={e => update("aanhef", e.target.value)}><option value="meneer">Meneer</option><option value="mevrouw">Mevrouw</option></select></label>{field("leeftijd", "Leeftijd · optioneel", "number")}</div></>}
+    {step === 2 && <>{field("bedrijfsnaam", "Bedrijfsnaam", "text", false, "organization")}{field("kvk_nummer", "KVK-nummer · 8 cijfers")}{field("aantal_werknemers", "Aantal werknemers", "number")}</>}
+    {step === 3 && <dl className="auth-review"><div><dt>Naam</dt><dd>{form.voornaam} {form.achternaam}</dd></div><div><dt>E-mailadres</dt><dd>{form.email}</dd></div><div><dt>Bedrijf</dt><dd>{form.bedrijfsnaam || "Niet ingevuld"}</dd></div><div><dt>KVK-nummer</dt><dd>{form.kvk_nummer || "Niet ingevuld"}</dd></div></dl>}
+    <div className="auth-actions">{step > 1 && <button type="button" className="button button-secondary" disabled={loading} onClick={() => { setStep(step - 1); setError(null); }}>Vorige</button>}<button className="button" type="submit" disabled={loading}>{loading ? "Account aanmaken…" : step === 3 ? "Account aanmaken" : "Volgende stap"}{step === 3 ? <Check size={17} /> : <ArrowRight size={17} />}</button></div>
+    </form><div className="auth-bottom">Al een account? <Link to="/login">Log in</Link></div></div></section>;
+}

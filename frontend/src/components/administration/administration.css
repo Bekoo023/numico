@@ -84,3 +84,28 @@
 @media(max-width:640px) { .dash-nav { overflow-x:auto; } .dash-nav a { flex-shrink:0; white-space:nowrap; min-width:110px; } .admin-period-fields { width:100%; } .admin-period-fields label { flex:1; min-width:0; } .admin-period input { width:100%; } .admin-upload-icon { width:45px; height:45px; } .admin-upload h2 { font-size:18px; } .admin-upload > div { min-width:170px; } .admin-toolbar { flex-direction:column; align-items:stretch; } .admin-toolbar select { width:100%; } .admin-table { min-width:680px; } .admin-chat .dash-section-heading { flex-wrap:wrap; } .admin-chat-form { gap:8px; } .admin-chat-form button { padding:12px; } .admin-chat-form button span { display:none; } .admin-message { max-width:100%; } .admin-dialog { max-height:calc(100dvh - 20px); width:calc(100vw - 20px); } .admin-dialog-heading,.admin-editor-grid { padding:17px; } .admin-form-row { gap:10px; } .admin-dialog-heading h2 { font-size:18px; } .admin-money { font-size:25px; } }
 .admin-table-wrap { position: relative; }
 .admin-message-text a { color: #326646; text-decoration: underline; text-underline-offset: 3px; }
+
+.admin-table th { font-size: 11px; color: #66795b; }
+.admin-table td, .admin-table td strong { font-size: 13px; }
+.admin-table tbody tr:hover { background: #f7faf3; }
+.admin-table td:first-child span, .admin-status, .admin-pagination, .admin-footnote { font-size: 11px; }
+.admin-text-button { display: inline-flex; align-items: center; min-height: 40px; padding: 7px 4px; font-size: 12px; }
+.admin-period-fields label, .admin-period input { font-size: 12px; }
+.admin-period input, .admin-toolbar input, .admin-toolbar select { min-height: 43px; }
+.admin-chat-context, .admin-upload .admin-upload-privacy { font-size: 11px; }
+.admin-chat-welcome p { font-size: 13px; color: #677b5c; }
+.admin-suggestion { min-height: 43px; font-size: 12px; }
+.admin-suggestion:hover { background: #eaf2df; border-color: #adc497; }
+.admin-icon-button { min-width: 42px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+@media (max-width: 640px) {
+  .admin-upload > div { min-width: 0; flex-basis: calc(100% - 65px); }
+  .admin-toolbar input, .admin-toolbar select, .admin-form input, .admin-form textarea, .admin-chat-form textarea { font-size: 16px; }
+  .admin-upload > .dash-button { width: 100%; }
+  .admin-period-fields input { font-size: 13px; }
+}
+@media (max-width: 640px) {
+  .admin-table:has(.admin-empty) { min-width: 0; table-layout: fixed; }
+  .admin-table:has(.admin-empty) thead { display: none; }
+  .admin-table:has(.admin-empty) td { white-space: normal; }
+  .admin-empty { padding: 26px 8px; }
+}
