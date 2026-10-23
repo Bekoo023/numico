@@ -14,6 +14,13 @@ Bedragen worden als gehele centen opgeslagen. Creditnota's behouden hun negatiev
 
 ## Backend en configuratie
 
+### Export en foto's
+
+- Onder Overzicht en Bonnetjes staat **Download ZIP**. De export bevat `bonnetjes.csv` en een map `bonnen` met de originele bestanden. Alleen gecontroleerde bonnen van het ingelogde account binnen de gekozen datumgrenzen worden meegenomen, over alle pagina's. Zoek- en statusfilters gelden niet voor de export.
+- De CSV gebruikt UTF-8 met BOM, puntkomma's en decimale komma's. Iedere rij bevat bonnummer, datum, leverancier, categorie, valuta, totaal inclusief btw, vermelde btw, notities en het bijbehorende bestandspad. Creditnota's behouden hun minteken. Tekst die als spreadsheetformule kan worden gelezen krijgt een apostrof als voorvoegsel.
+- `GET /api/receipts/export` vereist authenticatie en de PHP ZIP-extensie. Maximaal 1000 bonnen en 200 MB aan originele bestanden per export; kies anders een kleinere periode. Bij ontbrekende bestanden stopt de export met een melding. Tijdelijke ZIP-bestanden worden na het versturen verwijderd.
+- Bij Uploaden opent **Foto maken** via een bestandsinput met `capture="environment"` bij ondersteunde mobiele browsers de achtercamera. De gewone bestandskeuze blijft beschikbaar. Foto's volgen dezelfde validatie, opslag en controle als andere uploads (JPG, PNG of WebP; maximaal de getoonde serverlimiet). Cameragedrag hangt af van toestel en browser; desktop toont doorgaans een bestandskiezer.
+
 De Laravel-backend gebruikt de bestaande Sanctum-authenticatie. Iedere bon, download, zoekopdracht en chat is begrensd tot de ingelogde gebruiker. Bestanden staan op de private local disk, nooit onder public/storage. Dubbele bestanden worden per gebruiker herkend met SHA-256. AI-aanvragen hebben snelheidslimieten en locks tegen gelijktijdige wijzigingen.
 
 De nieuwe migratie `2026_10_21_000002_create_administration_tables.php` is lokaal uitgevoerd. Voor een andere omgeving: voer `php artisan migrate` uit vanuit backend. De database en private storage moeten samen geback-upt worden.
@@ -22,7 +29,9 @@ De AI leest uitsluitend de server-side `OPENAI_API_KEY` uit backend/.env. Het st
 
 `backend/public/.user.ini` stelt uploads in op 10 MB en POST-verzoeken op 12 MB voor PHP-FPM/FastCGI. PHP kan dit bestand enkele minuten cachen. Apache-module- en CLI-servers gebruiken hun eigen PHP-configuratie. Het dashboard toont daarom de werkelijk door de backend gerapporteerde uploadlimiet. Voor een losse ontwikkelserver kan PHP gestart worden met `php -d upload_max_filesize=10M -d post_max_size=12M artisan serve`.
 
-De frontend gebruikt `VITE_API_BASE_URL`, met `https://backend.test` als bestaande standaard. Laravel CORS staat momenteel `http://localhost:5173` toe. Pas dit aan bij een andere frontend-origin.
+De frontend gebruikt `VITE_API_BASE_URL`, met `https://backend.test` als bestaande standaard. Laravel CORS staat lokale frontends op poort 5173 en 5174 toe, zowel via `localhost` als `127.0.0.1`. Vite kan poort 5174 gebruiken wanneer 5173 al bezet is. Pas de toegestane origins aan bij een ander frontend-adres en voer na een configuratiewijziging `php artisan config:clear` uit vanuit `backend`.
+
+Op deze Windows-machine gebruikt Herd PHP 8.3 via zijn eigen router, waardoor `backend/public/.user.ini` niet wordt toegepast. In `C:\Users\bekir\.config\herd\bin\php83\php.ini` zijn daarom `upload_max_filesize=10M` en `post_max_size=12M` ingesteld. PHP is herstart en de waarden zijn via de webserver gecontroleerd. Deze instellingen gelden voor alle lokale sites die dezelfde Herd PHP-versie gebruiken. De applicatie houdt daarnaast zelf de grens van 10 MB aan.
 
 Let op: de bestaande root-.gitignore sluit de volledige backend-map uit. De backendwijzigingen staan lokaal op schijf maar komen daardoor niet automatisch mee in een Git-commit. Neem de benodigde bronbestanden mee bij deployment; houd .env, databases, uploads en vendor buiten versiebeheer.
 

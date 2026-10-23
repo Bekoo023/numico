@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowUpRight, MessageCircle, Send, Sparkles } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Send } from "lucide-react";
 import { errorMessage, jsonRequest, useAdministrationApi } from "./api";
 import type { Message } from "./api";
 import AssistantText from "./AssistantText";
@@ -37,7 +37,7 @@ export default function AdministrationChat({ from, to, revision, invalidPeriod }
     } catch (error) { setError(errorMessage(error)); } finally { setBusy(false); }
   }
   return <section className="dash-card admin-chat" id="assistant">
-    <div className="dash-section-heading"><div><h2><Sparkles size={19} /> AI-assistent</h2></div><span className="dash-tag">Op basis van jouw bonnen</span></div>
+    <div className="dash-section-heading"><div><h2><MessageCircle size={19} /> Assistent</h2></div><span className="dash-tag">Op basis van jouw bonnen</span></div>
 
     <div className="admin-chat-context">{from || to ? <>Periode: {from || "begin"} — {to || "vandaag"}</> : "Alle periodes"}{revision > 0 ? " · bijgewerkt" : ""}</div>
     <div className="admin-chat-log" ref={log} role="log" aria-label="Gesprek met administratie-assistent" aria-live="polite">

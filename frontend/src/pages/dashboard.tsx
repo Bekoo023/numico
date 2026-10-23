@@ -16,7 +16,7 @@ const navigation = [
   { to: "/dashboard", label: "Overzicht", icon: LayoutDashboard },
   { to: "/dashboard/upload", label: "Uploaden", icon: Upload },
   { to: "/dashboard/bonnetjes", label: "Bonnetjes", icon: FileText },
-  { to: "/dashboard/assistent", label: "AI-assistent", icon: MessageCircle },
+  { to: "/dashboard/assistent", label: "Assistent", icon: MessageCircle },
   { to: "/dashboard/account", label: "Mijn account", icon: UserRound },
 ];
 

@@ -109,3 +109,8 @@
   .admin-table:has(.admin-empty) td { white-space: normal; }
   .admin-empty { padding: 26px 8px; }
 }
+.admin-export { display:flex; align-items:center; justify-content:space-between; gap:20px; margin:0 0 24px; padding:16px 0; border-block:1px solid #aac8f221; }
+.admin-export strong { font-size:13px; font-weight:600; }
+.admin-export p { font-size:12px; color:#a0b3cd; margin:6px 0 0; max-width:620px; }
+.admin-export .dash-button { flex-shrink:0; }
+@media(max-width:640px) { .admin-export { align-items:stretch; flex-direction:column; gap:12px; } }

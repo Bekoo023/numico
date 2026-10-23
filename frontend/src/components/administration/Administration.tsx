@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCheck, ChevronLeft, ChevronRight, FileText, ReceiptText, Search, Upload, Wallet } from "lucide-react";
+import { Camera, Download, CheckCheck, ChevronLeft, ChevronRight, FileText, ReceiptText, Search, Upload, Wallet } from "lucide-react";
 import { errorMessage, money, statusLabels, useAdministrationApi } from "./api";
 import type { Receipt, ReceiptResponse } from "./api";
 import ReceiptEditor from "./ReceiptEditor";
@@ -24,11 +24,31 @@ export default function Administration({ refresh, view }: { refresh: number; vie
   const [uploadStatus, setUploadStatus] = useState("");
   const [selected, setSelected] = useState<Receipt | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const uploadLimit = data?.upload_max_bytes ?? 10 * 1024 * 1024;
   const uploadLimitLabel = (uploadLimit / 1024 / 1024).toLocaleString("nl-NL", { maximumFractionDigits: 1 });
   const invalidDates = Boolean(from && to && from > to);
   const reload = () => setRevision(value => value + 1);
+
+  async function exportReceipts() {
+    if (exporting || invalidDates) return;
+    setExporting(true); setNotice("");
+    try {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const response = await api(`/receipts/export?${params}`);
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url; link.download = "numico-bonnen.zip";
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setNotice("Export gedownload: bonnetjes.csv en de originele bestanden zitten in het ZIP-bestand.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setExporting(false); }
+  }
 
   useEffect(() => { const timer = setTimeout(() => { setQuery(search); setPage(1); }, 250); return () => clearTimeout(timer); }, [search]);
   useEffect(() => {
@@ -64,12 +84,12 @@ export default function Administration({ refresh, view }: { refresh: number; vie
       reload();
       if (result.duplicate) { setNotice("Dit bestand staat al in je administratie. De bestaande bon is geopend."); setSelected(result.receipt); }
       else {
-        setUploadStatus("AI leest de leverancier, datum, bedragen en btw uit…");
+        setUploadStatus("Leverancier, datum, bedragen en btw worden uitgelezen…");
         try { await extract(result.receipt); setNotice("Je bon is uitgelezen. Controleer de gegevens en sla ze op."); }
         catch (error) { setNotice(`${errorMessage(error)} Je bon is bewaard. Je kunt later opnieuw uitlezen of de bedragen handmatig invullen.`); setSelected(result.receipt); }
       }
     } catch (error) { setNotice(errorMessage(error)); }
-    finally { setUploading(false); setUploadStatus(""); if (input.current) input.current.value = ""; }
+    finally { setUploading(false); setUploadStatus(""); if (input.current) input.current.value = ""; if (camera.current) camera.current.value = ""; }
   }
   const summary = data?.summary;
   const euro = summary?.currencies.find(item => item.currency === "EUR");
@@ -78,6 +98,7 @@ export default function Administration({ refresh, view }: { refresh: number; vie
 
   return <>
     {view !== "upload" && <div className="admin-period"><div><span className="dash-eyebrow">PERIODE</span></div><div className="admin-period-fields"><label>Van<input type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }} /></label><label>Tot en met<input type="date" value={to} min={from || undefined} onChange={e => { setTo(e.target.value); setPage(1); }} /></label>{(from || to) && <button className="dash-button" onClick={() => { setFrom(""); setTo(""); setPage(1); }}>Alles</button>}</div></div>}
+    {view !== "upload" && <div className="admin-export"><div><strong>Export voor je boekhouder</strong><p>CSV en originele bestanden van alle gecontroleerde bonnen in de gekozen periode. Zoek- en statusfilters gelden niet voor de export.</p></div><button className="dash-button" disabled={exporting || invalidDates || loading || !data?.summary.confirmed} onClick={() => void exportReceipts()}><Download size={17} />{exporting ? "Export maken…" : "Download ZIP"}</button></div>}
     {invalidDates && <p className="admin-warning" role="alert">De einddatum moet op of na de begindatum liggen. Je ziet nog de vorige gegevens.</p>}
     {error && <p className="admin-warning" role="alert">{error} {data && "Je ziet de laatst opgehaalde gegevens."} <button onClick={reload}>Opnieuw proberen</button></p>}
     {view === "overview" && <><section className={`dash-stats ${stale ? "admin-is-loading" : ""}`} aria-label="Administratiecijfers" aria-busy={loading}>
@@ -92,10 +113,12 @@ export default function Administration({ refresh, view }: { refresh: number; vie
     </>}
     {view === "upload" && <section className="admin-upload dash-card" id="upload" onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); void upload(e.dataTransfer.files[0]); }} data-dragging={dragging}>
       <span className="admin-upload-icon"><Upload size={27} /></span><div><h2>{uploading ? "Je bonnetje wordt verwerkt" : "Upload een bon"}</h2><p>{uploading ? uploadStatus : "Sleep een bon hierheen of kies een bestand."}</p><span>JPG, PNG, WebP of PDF · maximaal {uploadLimitLabel} MB · één bon per bestand</span></div><button className="dash-button admin-primary" onClick={() => input.current?.click()} disabled={uploading}><Upload size={16} />{uploading ? "Bezig…" : "Bonnetje uploaden"}</button><input className="admin-sr-only" type="file" tabIndex={-1} ref={input} accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Bonnetje kiezen" onChange={e => void upload(e.target.files?.[0])} />
-      <p className="admin-upload-privacy">Uitlezen via OpenAI. Je bon blijft privé.</p>
+      <button className="dash-button" onClick={() => camera.current?.click()} disabled={uploading}><Camera size={18} />Foto maken</button>
+      <input className="admin-sr-only" type="file" tabIndex={-1} ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Foto van je bon maken" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; void upload(file); }} />
+      <p className="admin-upload-privacy">Op je telefoon opent Foto maken de camera als je browser dit ondersteunt. Je kunt ook een bestaande foto kiezen. Gegevens worden automatisch uitgelezen; controleer ze voordat je opslaat.</p>
     </section>
     }
-    {view === "overview" && <div className="admin-overview-grid"><AdministrationProgress summary={summary} loading={loading} stale={stale} /><section className="dash-card dash-shortcuts"><h2>Snel naar</h2><Link to="/dashboard/upload"><Upload size={20} /><div><strong>Bon uploaden</strong><span>Voeg een foto of PDF toe</span></div><span>↗</span></Link><Link to="/dashboard/bonnetjes"><ReceiptText size={20} /><div><strong>Bonnetjes</strong><span>Bekijk en controleer je bonnen</span></div><span>↗</span></Link><Link to="/dashboard/assistent"><FileText size={20} /><div><strong>AI-assistent</strong><span>Stel een vraag over je cijfers</span></div><span>↗</span></Link></section></div>}
+    {view === "overview" && <div className="admin-overview-grid"><AdministrationProgress summary={summary} loading={loading} stale={stale} /><section className="dash-card dash-shortcuts"><h2>Snel naar</h2><Link to="/dashboard/upload"><Upload size={20} /><div><strong>Bon uploaden</strong><span>Voeg een foto of PDF toe</span></div><span>↗</span></Link><Link to="/dashboard/bonnetjes"><ReceiptText size={20} /><div><strong>Bonnetjes</strong><span>Bekijk en controleer je bonnen</span></div><span>↗</span></Link></section></div>}
     {notice && <p className="admin-notice" role="status">{notice}</p>}
 
     {view === "receipts" && <section className="dash-card admin-receipts" id="receipts"><div className="dash-section-heading"><div><h2>Bonnetjes</h2></div><span className="dash-tag">{data?.receipts.total ?? "—"} resultaten</span></div>

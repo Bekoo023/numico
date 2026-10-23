@@ -42,7 +42,7 @@ export default function ReceiptEditor({ receipt, onClose, onSaved, onExtract }: 
     <div className="admin-editor-grid"><div className="admin-preview">
       {preview ? <>{receipt.mime === "application/pdf" ? <iframe src={preview} title="Originele bon" /> : <img src={preview} alt="Origineel geüpload bonnetje" />}<a className="dash-button" href={preview} download={receipt.original_name}><Download size={15} />Origineel downloaden</a></> : <p role="status">{previewError || "Origineel ophalen…"}</p>}
     </div><form onSubmit={save} className="admin-form">
-      <p className="dash-muted">Vergelijk de bedragen met het origineel. Pas na opslaan telt deze bon mee in je overzicht en bij de assistent.</p>
+      <p className="dash-muted">Vergelijk de bedragen met het origineel. Pas na opslaan telt deze bon mee in je overzicht.</p>
       {receipt.extraction?.warnings?.map((warning, i) => <p className="admin-warning" key={i}>{warning}</p>)}
       {receipt.error && <p className="admin-warning">{receipt.error}</p>}
       <label>Leverancier<input autoFocus required maxLength={255} value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} /></label>

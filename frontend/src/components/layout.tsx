@@ -8,7 +8,7 @@ export default function Layout() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return;
-    const titles: Record<string, string> = { "/": "Rust in je administratie", "/pricing": "Prijzen", "/login": "Inloggen", "/register": "Account aanmaken", "/dashboard": "Jouw werkruimte" };
+    const titles: Record<string, string> = { "/": "Bonnetjes en uitgaven", "/pricing": "Prijzen", "/login": "Inloggen", "/register": "Account aanmaken", "/dashboard": "Jouw werkruimte" };
     document.title = `${titles[pathname] || "Pagina niet gevonden"} | Numico`;
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
     else window.scrollTo(0, 0);
